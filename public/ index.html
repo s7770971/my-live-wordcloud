@@ -6,7 +6,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <style>
-        body { margin: 0; background-color: #1a1a1a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        body { margin: 0; background-color: #1a1a1a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden;}
         canvas { width: 100vw; height: 100vh; }
     </style>
 </head>
@@ -19,11 +19,24 @@
         canvas.height = window.innerHeight;
 
         socket.on('update_cloud', (wordCounts) => {
-            const list = Object.keys(wordCounts).map(word => [word, wordCounts[word] * 15]);
+            // 把資料變成 wordcloud2.js 需要的格式，後面的數字是放大倍率
+            const list = Object.keys(wordCounts).map(word => [word, wordCounts[word] * 20 + 20]); 
+            
             WordCloud(canvas, { 
-                list: list, fontFamily: '微軟正黑體, Arial', weightFactor: 2, 
-                color: 'random-light', backgroundColor: '#1a1a1a', rotateRatio: 0.3 
+                list: list, 
+                fontFamily: '微軟正黑體, Arial', 
+                weightFactor: 1, 
+                color: 'random-light', 
+                backgroundColor: '#1a1a1a', 
+                rotateRatio: 0.3,
+                gridSize: 10
             });
+        });
+
+        // 螢幕大小改變時自動調整畫布
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         });
     </script>
 </body>

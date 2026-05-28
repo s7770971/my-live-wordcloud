@@ -2,28 +2,43 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>輸入字詞</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>文字雲輸入</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px 20px; background-color: #f0f0f0; }
-        input { font-size: 24px; padding: 10px; width: 80%; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 20px;}
-        button { font-size: 24px; padding: 10px 40px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer;}
+        body { font-family: '微軟正黑體', sans-serif; text-align: center; padding: 40px 20px; background-color: #f0f4f8; margin: 0;}
+        h2 { color: #333; margin-bottom: 20px;}
+        input { font-size: 20px; padding: 15px; width: 80%; max-width: 300px; border-radius: 8px; border: 2px solid #ccc; margin-bottom: 20px; outline: none; box-sizing: border-box;}
+        input:focus { border-color: #007bff; }
+        button { font-size: 20px; padding: 15px 40px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; width: 80%; max-width: 300px; box-sizing: border-box;}
+        button:active { background-color: #0056b3; }
     </style>
 </head>
 <body>
     <h2>請輸入你想說的詞！</h2>
-    <input type="text" id="wordInput" placeholder="輸入文字..." maxlength="10">
-    <br><button onclick="sendWord()">送出</button>
+    <input type="text" id="wordInput" placeholder="輸入文字 (最多10字)" maxlength="10">
+    <br>
+    <button onclick="sendWord()">送出</button>
+
     <script>
         const socket = io();
         const input = document.getElementById('wordInput');
+
         function sendWord() {
-            if (input.value.trim() !== '') {
-                socket.emit('send_word', input.value);
-                input.value = ''; 
+            const word = input.value.trim();
+            if (word !== '') {
+                socket.emit('send_word', word);
+                input.value = ''; // 送出後清空
+                input.focus(); // 讓手機鍵盤保持彈出狀態
             }
         }
+
+        // 支援按鍵盤 Enter 送出
+        input.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                sendWord();
+            }
+        });
     </script>
 </body>
 </html>
