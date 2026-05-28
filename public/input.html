@@ -90,7 +90,7 @@
         function sendWord() {
             const word = input.value.trim();
             // 💡 後端防呆判斷，確保真的只有 1 個字才送出
-            if (word.length === 1) {
+            if (word.length === 10) {
                 socket.emit('send_word', word);
                 input.value = ''; 
                 input.focus(); 
