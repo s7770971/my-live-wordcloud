@@ -37,8 +37,7 @@
             height: 100vh; 
             position: relative;
             z-index: 2; 
-            /* 讓字體自帶微霓虹發光 */
-            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 15px rgba(0, 123, 255, 0.3));
+            /* 💡 移除導致打架的 drop-shadow，發光直接交給 Canvas 底層處理，確保安全 */
             transition: opacity 0.3s ease-in-out; 
             opacity: 1;
         }
@@ -63,4 +62,81 @@
         <div class="qrcode-text">掃我加入歌詞投票</div>
     </div>
 
-    <canvas id="cloud-canvas"></
+    <canvas id="cloud-canvas"></canvas>
+    
+    <script>
+        const socket = io(window.location.origin);
+        const canvas = document.getElementById('cloud-canvas');
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+
+        let renderTimeout;
+
+        socket.on('update_cloud', (wordCounts) => {
+            clearTimeout(renderTimeout);
+            canvas.classList.add('refreshing');
+
+            renderTimeout = setTimeout(() => {
+                const list = Object.keys(wordCounts).map(word => {
+                    const count = wordCounts[word];
+                    let baseSize = Math.sqrt(count) * 16 + 26; 
+                    if (word.length > 1) {
+                        baseSize = baseSize * (2.2 / word.length) + 6;
+                    }
+                    return [word, Math.max(baseSize, 20)]; // 稍微放大最低保證字體
+                }); 
+                
+                // 取得 Canvas 畫筆，用來做高難度描邊
+                const ctx = canvas.getContext('2d');
+
+                WordCloud(canvas, { 
+                    list: list, 
+                    fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
+                    weightFactor: 1, 
+                    color: 'random-light', 
+                    backgroundColor: 'transparent', 
+                    rotateRatio: 0.25,   
+                    minRotation: -0.2, 
+                    maxRotation: 0.2,  
+                    gridSize: 6,      
+                    drawOutOfBound: true, 
+                    wait: 10,
+                    
+                    // 💡 【終極黑框核心邏輯】：當套件把字畫上去時，立刻攔截它並強制畫出純黑邊框！
+                    onWordPlot: function(item) {
+                        // 這個事件觸發時，套件已經把字的形狀跟顏色填上去了
+                        // 我們直接利用 ctx 進行原生雙重描邊
+                        ctx.save();
+                        
+                        // 設定黑框粗細，字體越大黑框越粗，看起來比例最完美
+                        ctx.lineWidth = Math.max(item[1] * 0.12, 3); 
+                        ctx.strokeStyle = '#000000'; // 絕對純黑框
+                        ctx.lineJoin = 'round';     // 圓潤轉角，不產生尖刺
+                        
+                        // 讓畫筆位置對齊套件渲染的字體中心（套件底層秘密）
+                        ctx.strokeText(item[0], item[2], item[3]); 
+                        
+                        // 💡 順便加上一層微微的白色外發光，讓黑框在背景前更立體
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                        
+                        ctx.restore();
+                    }
+                });
+
+                setTimeout(() => {
+                    ctx.clearRect(0, 0, canvas.width, 210); // 確保 QR Code 區淨空
+                    canvas.classList.remove('refreshing');
+                }, 260);
+
+            }, 300); 
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+    </script>
+</body>
+</html>
