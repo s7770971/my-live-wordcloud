@@ -4,95 +4,80 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>歌詞投票輸入</title>
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
         body { 
             font-family: '微軟正黑體', sans-serif; 
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            margin: 0; padding: 0;
+            display: flex; justify-content: center; align-items: center; height: 100vh;
             background-image: url('bg_mobile.jpg');
-            background-size: cover;
-            background-position: center;
+            background-size: cover; background-position: center;
         }
-        /* 💡 霧面毛玻璃卡片效果 */
         .card {
             background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            padding: 40px 20px;
-            border-radius: 16px;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            padding: 40px 20px; border-radius: 16px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-            width: 85%;
-            max-width: 320px;
-            text-align: center;
+            width: 85%; max-width: 320px; text-align: center;
         }
-        h2 { 
-            color: #222; 
-            margin-top: 0;
-            margin-bottom: 25px;
-            font-size: 22px;
-            letter-spacing: 1px;
-            line-height: 1.4;
-        }
+        h2 { color: #222; margin-top: 0; margin-bottom: 25px; font-size: 22px; letter-spacing: 1px; line-height: 1.4; }
         input { 
-            font-size: 18px; 
-            padding: 14px; 
-            width: 100%; 
-            border-radius: 8px; 
-            border: 1px solid #ddd; 
-            margin-bottom: 20px; 
-            outline: none; 
-            box-sizing: border-box;
-            transition: all 0.3s;
-            text-align: center;
+            font-size: 18px; padding: 14px; width: 100%; border-radius: 8px; 
+            border: 1px solid #ddd; margin-bottom: 20px; outline: none; box-sizing: border-box;
+            transition: all 0.3s; text-align: center;
         }
-        input:focus { 
-            border-color: #007bff;
-            box-shadow: 0 0 8px rgba(0,123,255,0.2);
-        }
+        input:focus { border-color: #007bff; box-shadow: 0 0 8px rgba(0,123,255,0.2); }
         button { 
-            font-size: 18px; 
-            padding: 14px; 
-            background: linear-gradient(135deg, #007bff, #0056b3);
-            color: white; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            width: 100%; 
-            box-sizing: border-box;
-            font-weight: bold;
-            box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+            font-size: 18px; padding: 14px; background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; 
+            box-sizing: border-box; font-weight: bold; box-shadow: 0 4px 15px rgba(0,123,255,0.3);
             transition: all 0.2s;
         }
-        button:active { 
-            transform: scale(0.98);
-            box-shadow: 0 2px 5px rgba(0,123,255,0.2);
-        }
+        button:active { transform: scale(0.98); box-shadow: 0 2px 5px rgba(0,123,255,0.2); }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>✨ 唱什麼由你決定 ✨<br>請輸入想聽的歌名或關鍵字</h2>
-        <input type="text" id="wordInput" placeholder="在此輸入您的想法">
+        <h2>✨ 唱什麼由你決定 ✨<br>請輸入一個字詞</h2>
+        <input type="text" id="wordInput" placeholder="在此輸入">
         <button onclick="sendWord()">送出</button>
     </div>
 
     <script>
-        const socket = io();
+        // 💡 加上錯誤傾聽器，如果一開網頁套件就崩潰，立刻噴出原因
+        window.onerror = function(msg, url, line) {
+            alert("網頁初始化出錯: " + msg + "\n行數: " + line);
+            return false;
+        };
+
+        let socket;
+        try {
+            // 💡 強制讓 Socket 連接回當前的網址與通訊協定
+            socket = io(window.location.origin);
+        } catch(err) {
+            alert("Socket 初始化失敗: " + err.message);
+        }
+
         const input = document.getElementById('wordInput');
 
         function sendWord() {
-            const word = input.value.trim();
-            // 💡 2. 這裡放寬限制：只要不是空白，不管多長都可以順暢送出！
-            if (word !== '') {
-                socket.emit('send_word', word);
-                input.value = ''; 
-                input.focus(); 
+            try {
+                const word = input.value.trim();
+                if (word !== '') {
+                    // 檢查伺服器連線狀態
+                    if (!socket || !socket.connected) {
+                        alert("⚠️ 錯誤：目前手機與後端伺服器斷開連線，請確認網路或重新整理！");
+                        return;
+                    }
+                    
+                    socket.emit('send_word', word);
+                    input.value = ''; 
+                    input.focus(); 
+                }
+            } catch (error) {
+                // 💡 如果按下按鈕沒反應，這裡會強制彈出錯誤報告
+                alert("送出時發生程式錯誤: " + error.message);
             }
         }
 
