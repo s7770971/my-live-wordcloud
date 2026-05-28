@@ -2,12 +2,38 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>大螢幕 - 動態文字雲</title>
+    <title>大螢幕 - 質感動態文字雲</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <style>
-        body { margin: 0; background-color: #1a1a1a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden;}
-        canvas { width: 100vw; height: 100vh; }
+        body { 
+            margin: 0; 
+            /* https://cdn.phototourl.com/free/2026-05-28-d17e7ff9-09eb-43ed-ad29-c5b247f34b4b.png */
+            background-image: url('https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            overflow: hidden;
+            position: relative;
+        }
+        /* 💡 這一層是半透明黑紗，確保背景不會吃掉文字雲的顏色 */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(26, 26, 26, 0.75); /* 0.75代表透明度，越接近1越黑 */
+            z-index: 1;
+        }
+        canvas { 
+            width: 100vw; 
+            height: 100vh; 
+            position: relative;
+            z-index: 2; /* 讓文字雲飄在黑紗上面 */
+        }
     </style>
 </head>
 <body>
@@ -19,21 +45,19 @@
         canvas.height = window.innerHeight;
 
         socket.on('update_cloud', (wordCounts) => {
-            // 把資料變成 wordcloud2.js 需要的格式，後面的數字是放大倍率
             const list = Object.keys(wordCounts).map(word => [word, wordCounts[word] * 20 + 20]); 
             
             WordCloud(canvas, { 
                 list: list, 
-                fontFamily: '微軟正黑體, Arial', 
+                fontFamily: '微軟正黑體, Arial, sans-serif', 
                 weightFactor: 1, 
                 color: 'random-light', 
-                backgroundColor: '#1a1a1a', 
+                backgroundColor: 'transparent', /* 💡 必須是透明，否則會擋住背景圖 */
                 rotateRatio: 0.3,
                 gridSize: 10
             });
         });
 
-        // 螢幕大小改變時自動調整畫布
         window.addEventListener('resize', () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;

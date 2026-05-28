@@ -6,19 +6,80 @@
     <title>文字雲輸入</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { font-family: '微軟正黑體', sans-serif; text-align: center; padding: 40px 20px; background-color: #f0f4f8; margin: 0;}
-        h2 { color: #333; margin-bottom: 20px;}
-        input { font-size: 20px; padding: 15px; width: 80%; max-width: 300px; border-radius: 8px; border: 2px solid #ccc; margin-bottom: 20px; outline: none; box-sizing: border-box;}
-        input:focus { border-color: #007bff; }
-        button { font-size: 20px; padding: 15px 40px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; width: 80%; max-width: 300px; box-sizing: border-box;}
-        button:active { background-color: #0056b3; }
+        body { 
+            font-family: '微軟正黑體', sans-serif; 
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            /* https://cdn.phototourl.com/free/2026-05-28-716821db-f2da-4ac0-b18e-e31abf171aa3.png */
+            background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964');
+            background-size: cover;
+            background-position: center;
+        }
+        /* 💡 霧面毛玻璃卡片效果 */
+        .card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 40px 20px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+            width: 85%;
+            max-width: 320px;
+            text-align: center;
+        }
+        h2 { 
+            color: #222; 
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 22px;
+            letter-spacing: 1px;
+        }
+        input { 
+            font-size: 18px; 
+            padding: 14px; 
+            width: 100%; 
+            border-radius: 8px; 
+            border: 1px solid #ddd; 
+            margin-bottom: 20px; 
+            outline: none; 
+            box-sizing: border-box;
+            transition: all 0.3s;
+        }
+        input:focus { 
+            border-color: #007bff;
+            box-shadow: 0 0 8px rgba(0,123,255,0.2);
+        }
+        button { 
+            font-size: 18px; 
+            padding: 14px; 
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            width: 100%; 
+            box-sizing: border-box;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+            transition: all 0.2s;
+        }
+        button:active { 
+            transform: scale(0.98);
+            box-shadow: 0 2px 5px rgba(0,123,255,0.2);
+        }
     </style>
 </head>
 <body>
-    <h2>請輸入你想說的詞！</h2>
-    <input type="text" id="wordInput" placeholder="輸入文字 (最多10字)" maxlength="10">
-    <br>
-    <button onclick="sendWord()">送出</button>
+
+    <div class="card">
+        <h2>✨ 留下你的活動心得 ✨</h2>
+        <input type="text" id="wordInput" placeholder="輸入文字 (最多10字)" maxlength="10">
+        <button onclick="sendWord()">送出彈幕</button>
+    </div>
 
     <script>
         const socket = io();
@@ -28,12 +89,11 @@
             const word = input.value.trim();
             if (word !== '') {
                 socket.emit('send_word', word);
-                input.value = ''; // 送出後清空
-                input.focus(); // 讓手機鍵盤保持彈出狀態
+                input.value = ''; 
+                input.focus(); 
             }
         }
 
-        // 支援按鍵盤 Enter 送出
         input.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 sendWord();
