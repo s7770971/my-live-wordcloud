@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>歌詞投票輸入</title>
+    <title>唱什麼由你決定</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         body { 
@@ -42,8 +42,8 @@
 <body>
 
     <div class="card">
-        <h2>✨ 請輸入『一個字詞』為題 ✨<br>ex: 愛</h2>
-        <input type="text" id="wordInput" placeholder="輸入 1 ~ 4 字的詞彙" maxlength="4">
+        <h2>請輸入『一個字詞』為題 <br>ex: 愛</h2>
+        <input type="text" id="wordInput" placeholder="輸入 1 個字的詞彙" maxlength="4">
         <button onclick="sendWord()">送出</button>
     </div>
 
@@ -55,11 +55,11 @@
             const word = input.value.trim();
             
             // 💡 2. 修改防呆邏輯：只要輸入大於 0 且小於等於 4 個字，就允許送出！
-            if (word.length > 0 && word.length <= 4) {
+            if (word.length > 0 && word.length <= 10) {
                 socket.emit('send_word', word);
                 input.value = ''; 
                 input.focus(); 
-            } else if (word.length > 4) {
+            } else if (word.length > 10) {
                 // 💡 3. 如果超過 4 個字（雖然輸入框限制了，但防範複製貼上），給予提示
                 alert('為求大螢幕美觀，請輸入 4 個字以內的詞彙喔！');
             }
