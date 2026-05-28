@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>文字雲輸入</title>
+    <title>歌詞投票輸入</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         body { 
@@ -76,9 +76,9 @@
 <body>
 
     <div class="card">
-        <h2>✨ 留下你的活動心得 ✨</h2>
-        <input type="text" id="wordInput" placeholder="輸入文字 (最多10字)" maxlength="10">
-        <button onclick="sendWord()">送出彈幕</button>
+        <h2>✨ 請輸入『一個字詞』為題 ex:愛 ✨</h2>
+        <input type="text" id="wordInput" placeholder="輸入文字 (最多1字)" maxlength="1">
+        <button onclick="sendWord()">送出</button>
     </div>
 
     <script>
