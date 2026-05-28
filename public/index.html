@@ -6,8 +6,38 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <style>
-        body { margin: 0; background-image: url('bg.jpg'); background-size: cover; background-position: center; height: 100vh; overflow: hidden; background-color: #1a1a1a; }
-        canvas { width: 100vw; height: 100vh; }
+        body { 
+            margin: 0; 
+            background-image: url('bg.jpg'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            overflow: hidden;
+            position: relative;
+            background-color: #1a1a1a;
+        }
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(26, 26, 26, 0.75); 
+            z-index: 1;
+        }
+        canvas { 
+            width: 100vw; 
+            height: 100vh; 
+            position: relative;
+            z-index: 2; 
+            transition: opacity 0.4s ease-in-out; 
+            opacity: 1;
+        }
+        .refreshing {
+            opacity: 0.3; 
+        }
     </style>
 </head>
 <body>
@@ -15,24 +45,43 @@
     <script>
         const socket = io();
         const canvas = document.getElementById('cloud-canvas');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        socket.on('update_cloud', (wordCounts) => {
-            const list = Object.keys(wordCounts).map(word => [word, Math.max(wordCounts[word] * 15 + 20, 20)]);
-            WordCloud(canvas, { 
-                list: list, 
-                fontFamily: '微軟正黑體, sans-serif',
-                color: 'random-light', 
-                backgroundColor: 'transparent',
-                drawOutOfBound: true,
-                gridSize: 5
-            });
-        });
-        window.addEventListener('resize', () => {
+        
+        function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+
+        let renderTimeout;
+
+        socket.on('update_cloud', (wordCounts) => {
+            clearTimeout(renderTimeout);
+            canvas.classList.add('refreshing');
+
+            renderTimeout = setTimeout(() => {
+                // 💡 計算字體大小：基礎 20px，長歌名也塞得下
+                const list = Object.keys(wordCounts).map(word => [word, wordCounts[word] * 15 + 20]); 
+                
+                WordCloud(canvas, { 
+                    list: list, 
+                    fontFamily: '微軟正黑體, Arial, sans-serif', 
+                    weightFactor: 1, 
+                    color: 'random-light', 
+                    backgroundColor: 'transparent', 
+                    rotateRatio: 0.3, 
+                    gridSize: 8,
+                    drawOutOfBound: true, // 💡 強迫繪製，絕對不隱形卡死
+                    wait: 15 
+                });
+
+                setTimeout(() => {
+                    canvas.classList.remove('refreshing');
+                }, 200);
+
+            }, 300); 
         });
+
+        window.addEventListener('resize', resizeCanvas);
     </script>
 </body>
 </html>
