@@ -23,12 +23,11 @@
             background-color: #1a1a1a;
         }
         
-        /* 控制背景黑幕的深淺，目前是 0.75 */
         body::before {
             content: '';
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(20, 20, 20, 0.3); 
+            background-color: rgba(20, 20, 20, 0.3); /* 保持你最愛的 0.3 微透黑幕 */
             z-index: 1;
         }
 
@@ -46,14 +45,13 @@
             opacity: 0.3; 
         }
 
-        /* 💡 1. 頂端正中間 QR Code 固定圖層，外加防呆掃描白底與霓虹發光 */
         .qrcode-container {
             position: absolute;
-            top: 20px;          /* 距離大螢幕頂端 20 像素 */
-            left: 50%;          /* 水平置中基準線 */
-            transform: translateX(-50%); /* 完美校正中心點 */
-            z-index: 999;       /* 確保圖層在最頂層，字體絕對疊不上去 */
-            background: white;  /* 必須是純白底，手機才好辨識 */
+            top: 20px;          
+            left: 50%;          
+            transform: translateX(-50%); 
+            z-index: 999;       
+            background: white;  
             padding: 12px;
             border-radius: 12px;
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(0, 123, 255, 0.4);
@@ -61,7 +59,7 @@
         }
 
         .qrcode-container img {
-            width: 140px;       /* 💡 活動大螢幕標準尺寸，可依現場測試微調大小 */
+            width: 140px;       
             height: 140px;
             display: block;
         }
@@ -101,13 +99,18 @@
             canvas.classList.add('refreshing');
 
             renderTimeout = setTimeout(() => {
+                // 💡 撤除 filter！直接把所有拿到的詞（不論長短）通通放進來畫
                 const list = Object.keys(wordCounts).map(word => {
                     const count = wordCounts[word];
+                    
+                    // 💡 黃金自適應公式：
+                    // 1 個字的時候基本大小是 40px，高票字會變大。
+                    // 歌名越長（字數越多），基本字體會等比例縮小，確保大螢幕畫布不會吐血拒畫。
                     let baseSize = Math.sqrt(count) * 15 + 25; 
-                    if (word.length > 2) {
-                        baseSize = baseSize * (2.5 / word.length);
+                    if (word.length > 1) {
+                        baseSize = baseSize * (2.2 / word.length) + 6;
                     }
-                    return [word, Math.max(baseSize, 18)];
+                    return [word, Math.max(baseSize, 18)]; // 最低保障 18px 辨識度
                 }); 
                 
                 WordCloud(canvas, { 
@@ -116,27 +119,15 @@
                     weightFactor: 1, 
                     color: 'random-light', 
                     backgroundColor: 'transparent', 
-                    rotateRatio: 0,   
-                    gridSize: 5,      
+                    rotateRatio: 0,   // 長短詞混雜時，0度不旋轉能讓大螢幕空間利用率達到最高，畫面最整齊
+                    gridSize: 6,      
                     drawOutOfBound: true, 
-                    wait: 10,
-                    // 💡 3. 【核心安全禁區算法】：
-                    // 當 WordCloud2 要在畫布上決定字體位置時，如果隨機抽到的 Y 座標小於 220 像素（QR Code 的下緣），
-                    // 就強迫跳過不畫在該處，藉此騰出上方絕對不被遮擋的安全淨空區！
-                    clearCanvas: true,
-                    abortThreshold: 0,
-                    weightFactor: 1,
-                    onWordPlot: function(item) {
-                        // 此回呼函數可用於確認字體有確實繞開
-                    }
+                    wait: 10          
                 });
 
-                // 💡 4. 利用純前端邏輯做物理防禦：如果發現有字硬塞在上方，強制將畫布頂端重繪清空
                 const ctx = canvas.getContext('2d');
-                // 每次渲染完畢，順便把畫布上方 0~210px 的矩形區域擦乾淨，雙重保險
-                socket.once('update_cloud_done', () => {}); 
                 setTimeout(() => {
-                    // 清空上方 210px 高度的文字，確保視覺 100% 乾淨不擋
+                    // 雙重保險：每次渲染完，強制擦乾淨頂端 210px 高度的區域，絕對不擋住 QR Code
                     ctx.clearRect(0, 0, canvas.width, 210);
                     canvas.classList.remove('refreshing');
                 }, 260);
