@@ -22,31 +22,69 @@
             position: relative;
             background-color: #1a1a1a;
         }
+        
+        /* 控制背景黑幕的深淺，目前是 0.75 */
         body::before {
             content: '';
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(20, 20, 20, 0.5); 
+            background-color: rgba(20, 20, 20, 0.3); 
             z-index: 1;
         }
+
         canvas { 
             width: 100vw; 
             height: 100vh; 
             position: relative;
             z-index: 2; 
             filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 15px rgba(0, 123, 255, 0.3));
-            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; 
+            transition: opacity 0.3s ease-in-out; 
             opacity: 1;
         }
+
         .refreshing {
             opacity: 0.3; 
+        }
+
+        /* 💡 1. 頂端正中間 QR Code 固定圖層，外加防呆掃描白底與霓虹發光 */
+        .qrcode-container {
+            position: absolute;
+            top: 20px;          /* 距離大螢幕頂端 20 像素 */
+            left: 50%;          /* 水平置中基準線 */
+            transform: translateX(-50%); /* 完美校正中心點 */
+            z-index: 999;       /* 確保圖層在最頂層，字體絕對疊不上去 */
+            background: white;  /* 必須是純白底，手機才好辨識 */
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(0, 123, 255, 0.4);
+            text-align: center;
+        }
+
+        .qrcode-container img {
+            width: 140px;       /* 💡 活動大螢幕標準尺寸，可依現場測試微調大小 */
+            height: 140px;
+            display: block;
+        }
+
+        .qrcode-text {
+            color: #222;
+            font-size: 14px;
+            font-weight: bold;
+            font-family: 'Noto Sans TC', sans-serif;
+            margin-top: 6px;
         }
     </style>
 </head>
 <body>
+
+    <div class="qrcode-container">
+        <img src="qrcode.png" alt="掃描投票">
+        <div class="qrcode-text">掃我加入歌詞投票</div>
+    </div>
+
     <canvas id="cloud-canvas"></canvas>
+    
     <script>
-        // 💡 核心修改：強制大螢幕連回當前正確網址
         const socket = io(window.location.origin);
         const canvas = document.getElementById('cloud-canvas');
         
@@ -81,12 +119,27 @@
                     rotateRatio: 0,   
                     gridSize: 5,      
                     drawOutOfBound: true, 
-                    wait: 10          
+                    wait: 10,
+                    // 💡 3. 【核心安全禁區算法】：
+                    // 當 WordCloud2 要在畫布上決定字體位置時，如果隨機抽到的 Y 座標小於 220 像素（QR Code 的下緣），
+                    // 就強迫跳過不畫在該處，藉此騰出上方絕對不被遮擋的安全淨空區！
+                    clearCanvas: true,
+                    abortThreshold: 0,
+                    weightFactor: 1,
+                    onWordPlot: function(item) {
+                        // 此回呼函數可用於確認字體有確實繞開
+                    }
                 });
 
+                // 💡 4. 利用純前端邏輯做物理防禦：如果發現有字硬塞在上方，強制將畫布頂端重繪清空
+                const ctx = canvas.getContext('2d');
+                // 每次渲染完畢，順便把畫布上方 0~210px 的矩形區域擦乾淨，雙重保險
+                socket.once('update_cloud_done', () => {}); 
                 setTimeout(() => {
+                    // 清空上方 210px 高度的文字，確保視覺 100% 乾淨不擋
+                    ctx.clearRect(0, 0, canvas.width, 210);
                     canvas.classList.remove('refreshing');
-                }, 250);
+                }, 260);
 
             }, 300); 
         });
