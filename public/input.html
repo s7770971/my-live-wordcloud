@@ -6,18 +6,42 @@
     <title>歌詞投票輸入</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; }
-        .card { background: white; padding: 40px 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 85%; max-width: 320px; text-align: center; }
-        input { font-size: 18px; padding: 14px; width: 100%; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px; box-sizing: border-box; text-align: center; }
-        button { font-size: 18px; padding: 14px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+        body { 
+            font-family: '微軟正黑體', sans-serif; 
+            margin: 0; padding: 0;
+            display: flex; justify-content: center; align-items: center; height: 100vh;
+            background-image: url('bg_mobile.jpg');
+            background-size: cover; background-position: center;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            padding: 40px 20px; border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+            width: 85%; max-width: 320px; text-align: center;
+        }
+        h2 { color: #222; margin-top: 0; margin-bottom: 25px; font-size: 22px; letter-spacing: 1px; line-height: 1.4; }
+        input { 
+            font-size: 18px; padding: 14px; width: 100%; border-radius: 8px; 
+            border: 1px solid #ddd; margin-bottom: 20px; outline: none; box-sizing: border-box;
+            transition: all 0.3s; text-align: center;
+        }
+        input:focus { border-color: #007bff; box-shadow: 0 0 8px rgba(0,123,255,0.2); }
+        button { 
+            font-size: 18px; padding: 14px; background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; 
+            box-sizing: border-box; font-weight: bold; box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+            transition: all 0.2s;
+        }
+        button:active { transform: scale(0.98); box-shadow: 0 2px 5px rgba(0,123,255,0.2); }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>✨ 歌詞投票測試版 ✨</h2>
-        <input type="text" id="wordInput" placeholder="請隨便輸入文字">
-        <button onclick="sendWord()">測試送出</button>
+        <h2>✨ 唱什麼由你決定 ✨<br>請輸入想聽的歌名或關鍵字</h2>
+        <input type="text" id="wordInput" placeholder="在此輸入您的想法">
+        <button onclick="sendWord()">送出</button>
     </div>
 
     <script>
@@ -26,22 +50,19 @@
 
         function sendWord() {
             const word = input.value.trim();
-            
-            // 💡 診斷雷達 1：按下按鈕時，強迫手機彈出視窗
-            alert("【診斷】你按下了按鈕！輸入的文字是: " + word);
-
+            // 💡 拔除 alert 診斷，只要不是空白，歌名不管多長都直接發射！
             if (word !== '') {
-                // 💡 診斷雷達 2：檢查 Socket 是否真的有跟後端連上
-                if (socket.connected) {
-                    alert("【診斷】成功連線到伺服器！正在發射訊號...");
-                    socket.emit('send_word', word);
-                    input.value = ''; 
-                    input.focus(); 
-                } else {
-                    alert("【⚠️ 診斷失敗】網頁開了，但 Socket 通道是斷開的！這代表後端 server.js 沒有成功運作。");
-                }
+                socket.emit('send_word', word);
+                input.value = ''; 
+                input.focus(); 
             }
         }
+
+        input.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                sendWord();
+            }
+        });
     </script>
 </body>
 </html>
