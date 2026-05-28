@@ -19,6 +19,6 @@ io.on('connection', (socket) => {
 
 // 這裡已經改成雲端專用的設定了！
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
+http.listen(PORT, '0.0.0.0', () => {
     console.log(`伺服器啟動在 PORT ${PORT}`);
 });
