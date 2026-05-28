@@ -6,6 +6,9 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <style>
+        /* 💡 1. 載入 Google 官方最受歡迎的圓潤可愛字體 (Kosugi Maru) */
+        @import url('https://fonts.googleapis.com/css2?family=Kosugi+Maru&family=Noto+Sans+TC:wght@500;700&display=swap');
+
         body { 
             margin: 0; 
             background-image: url('bg.jpg'); 
@@ -24,25 +27,59 @@
             content: '';
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(26, 26, 26, 0.75); 
+            background-color: rgba(20, 20, 20, 0.75); /* 稍微調深，讓霓虹可愛字體更明顯 */
             z-index: 1;
         }
-        /* 💡 加上 CSS 過渡動畫，讓畫布重新整理時有平滑的淡入效果，減少生硬感 */
+        
         canvas { 
             width: 100vw; 
             height: 100vh; 
             position: relative;
             z-index: 2; 
-            transition: opacity 0.4s ease-in-out; /* 0.4秒平滑淡入 */
+            /* 💡 2. 讓文字雲自帶微微的霓虹發光霓彩質感，看起來更精緻 */
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 15px rgba(0, 123, 255, 0.3));
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out; 
             opacity: 1;
+            transform: scale(1);
         }
+        
+        /* 💡 3. 當有新字進來時，除了變透明，還會帶有流暢的縮放呼吸律動 */
         .refreshing {
-            opacity: 0.3; /* 重新計算文字時稍微變透明，製造呼吸律動感 */
+            opacity: 0.2; 
+            transform: scale(0.95);
+        }
+
+        /* 💡 4. 在背景黑紗與文字雲之間，加上自動漂浮的夢幻活潑粒子，讓大螢幕不冷場 */
+        .bubble-bg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; /* 夾在黑紗和畫布中間 */
+            pointer-events: none;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(105vh) scale(0.5); opacity: 0; }
+            10% { opacity: 0.4; }
+            90% { opacity: 0.4; }
+            100% { transform: translateY(-10vh) scale(1.2); opacity: 0; }
+        }
+        .bubble {
+            position: absolute;
+            background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(0,123,255,0.2));
+            border-radius: 50%;
+            animation: floatUp 12s infinite linear;
         }
     </style>
 </head>
 <body>
+    <div class="bubble-bg">
+        <div class="bubble" style="width: 40px; height: 40px; left: 15%; animation-duration: 14s; animation-delay: 0s;"></div>
+        <div class="bubble" style="width: 25px; height: 25px; left: 45%; animation-duration: 18s; animation-delay: 3s;"></div>
+        <div class="bubble" style="width: 50px; height: 50px; left: 70%; animation-duration: 16s; animation-delay: 1s;"></div>
+        <div class="bubble" style="width: 30px; height: 30px; left: 85%; animation-duration: 12s; animation-delay: 5s;"></div>
+    </div>
+
     <canvas id="cloud-canvas"></canvas>
+    
     <script>
         const socket = io();
         const canvas = document.getElementById('cloud-canvas');
@@ -56,34 +93,39 @@
         let renderTimeout;
 
         socket.on('update_cloud', (wordCounts) => {
-            // 💡 動態優化：使用防抖機制 (Debounce)，當很多人連續送出字詞時，不會讓畫面瘋狂閃爍，而是平滑渲染
             clearTimeout(renderTimeout);
             
-            // 讓畫布產生微弱的呼吸縮放動態
+            // 觸發呼吸縮放動態
             canvas.classList.add('refreshing');
 
             renderTimeout = setTimeout(() => {
-                const list = Object.keys(wordCounts).map(word => [word, wordCounts[word] * 20 + 20]); 
+                // 💡 5. 優化級距：將文字基本大小放大，並加入開根號權重，避免高票字的體積失控變形
+                const list = Object.keys(wordCounts).map(word => {
+                    const count = wordCounts[word];
+                    const fontSize = Math.sqrt(count) * 28 + 24; 
+                    return [word, fontSize];
+                }); 
                 
                 WordCloud(canvas, { 
                     list: list, 
-                    fontFamily: '微軟正黑體, Arial, sans-serif', 
+                    /* 💡 6. 啟用超可愛的 Kosugi Maru 圓體與精選備用字型 */
+                    fontFamily: '"Kosugi Maru", "Noto Sans TC", "微軟正黑體", sans-serif', 
                     weightFactor: 1, 
+                    /* 💡 7. 活潑色彩：使用 random-light 讓字體自帶馬卡龍冰淇淋色，搭配黑背景超精緻 */
                     color: 'random-light', 
                     backgroundColor: 'transparent', 
-                    rotateRatio: 0.3, // 30% 的文字會旋轉，增加構圖動態感
-                    gridSize: 8,
-                    // 💡 關鍵動態：啟用套件內建的彈跳流暢畫圖動畫
+                    rotateRatio: 0.2, // 20%的字微旋轉，既有活潑感，又不會轉太多導致觀眾頭暈
+                    gridSize: 12,     // 稍微加寬字距，讓邊緣發光效果有伸展空間
                     drawOutOfBound: false,
-                    wait: 15 // 每個字體生成的間隔微秒，會看到字體「依序蹦出來」的酷炫效果
+                    wait: 20          // 💡 8. 讓字體像爆米花一樣一個一個蹦出來，速度調整得更具觀賞性
                 });
 
-                // 渲染完畢，文字雲平滑顯現
+                // 渲染完畢，文字雲以可愛的姿態平滑顯現
                 setTimeout(() => {
                     canvas.classList.remove('refreshing');
-                }, 200);
+                }, 350);
 
-            }, 300); // 延遲 0.3 秒緩衝，讓連續輸入更流暢
+            }, 400); // 延遲 0.4 秒緩衝，在多人連續送出時依然保持穩定的完美動畫
         });
 
         window.addEventListener('resize', resizeCanvas);

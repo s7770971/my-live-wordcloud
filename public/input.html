@@ -3,47 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>唱什麼由你決定</title>
+    <title>歌詞投票輸入</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         body { 
             font-family: '微軟正黑體', sans-serif; 
-            margin: 0; padding: 0;
-            display: flex; justify-content: center; align-items: center; height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             background-image: url('bg_mobile.jpg');
-            background-size: cover; background-position: center;
+            background-size: cover;
+            background-position: center;
         }
+        /* 💡 霧面毛玻璃卡片效果 */
         .card {
             background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            padding: 40px 20px; border-radius: 16px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 40px 20px;
+            border-radius: 16px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-            width: 85%; max-width: 320px; text-align: center;
+            width: 85%;
+            max-width: 320px;
+            text-align: center;
         }
         h2 { 
-            color: #222; margin-top: 0; margin-bottom: 25px;
-            font-size: 22px; letter-spacing: 1px; line-height: 1.4;
+            color: #222; 
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 22px;
+            letter-spacing: 1px;
+            line-height: 1.4;
         }
         input { 
-            font-size: 18px; padding: 14px; width: 100%; border-radius: 8px; 
-            border: 1px solid #ddd; margin-bottom: 20px; outline: none; box-sizing: border-box;
-            transition: all 0.3s; text-align: center;
+            font-size: 18px; 
+            padding: 14px; 
+            width: 100%; 
+            border-radius: 8px; 
+            border: 1px solid #ddd; 
+            margin-bottom: 20px; 
+            outline: none; 
+            box-sizing: border-box;
+            transition: all 0.3s;
+            text-align: center;
         }
-        input:focus { border-color: #007bff; box-shadow: 0 0 8px rgba(0,123,255,0.2); }
+        input:focus { 
+            border-color: #007bff;
+            box-shadow: 0 0 8px rgba(0,123,255,0.2);
+        }
         button { 
-            font-size: 18px; padding: 14px; background: linear-gradient(135deg, #007bff, #0056b3);
-            color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; 
-            box-sizing: border-box; font-weight: bold; box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+            font-size: 18px; 
+            padding: 14px; 
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            width: 100%; 
+            box-sizing: border-box;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.3);
             transition: all 0.2s;
         }
-        button:active { transform: scale(0.98); box-shadow: 0 2px 5px rgba(0,123,255,0.2); }
+        button:active { 
+            transform: scale(0.98);
+            box-shadow: 0 2px 5px rgba(0,123,255,0.2);
+        }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>請輸入『一個字詞』為題 <br>ex: 愛</h2>
-        <input type="text" id="wordInput" placeholder="輸入 1 個字的詞彙" maxlength="4">
+        <h2>✨ 唱什麼由你決定 ✨<br>請輸入想聽的歌名或關鍵字</h2>
+        <input type="text" id="wordInput" placeholder="在此輸入您的想法">
         <button onclick="sendWord()">送出</button>
     </div>
 
@@ -53,15 +88,11 @@
 
         function sendWord() {
             const word = input.value.trim();
-            
-            // 💡 2. 修改防呆邏輯：只要輸入大於 0 且小於等於 4 個字，就允許送出！
-            if (word.length > 0 && word.length <= 10) {
+            // 💡 2. 這裡放寬限制：只要不是空白，不管多長都可以順暢送出！
+            if (word !== '') {
                 socket.emit('send_word', word);
                 input.value = ''; 
                 input.focus(); 
-            } else if (word.length > 10) {
-                // 💡 3. 如果超過 4 個字（雖然輸入框限制了，但防範複製貼上），給予提示
-                alert('為求大螢幕美觀，請輸入 4 個字以內的詞彙喔！');
             }
         }
 
