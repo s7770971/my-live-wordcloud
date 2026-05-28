@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>歌詞投票輸入</title>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
         body { 
             font-family: '微軟正黑體', sans-serif; 
@@ -24,60 +24,41 @@
         input { 
             font-size: 18px; padding: 14px; width: 100%; border-radius: 8px; 
             border: 1px solid #ddd; margin-bottom: 20px; outline: none; box-sizing: border-box;
-            transition: all 0.3s; text-align: center;
+            text-align: center;
         }
-        input:focus { border-color: #007bff; box-shadow: 0 0 8px rgba(0,123,255,0.2); }
         button { 
             font-size: 18px; padding: 14px; background: linear-gradient(135deg, #007bff, #0056b3);
             color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; 
             box-sizing: border-box; font-weight: bold; box-shadow: 0 4px 15px rgba(0,123,255,0.3);
-            transition: all 0.2s;
         }
-        button:active { transform: scale(0.98); box-shadow: 0 2px 5px rgba(0,123,255,0.2); }
+        button:active { transform: scale(0.98); }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>✨ 唱什麼由你決定 ✨<br>請輸入一個字詞</h2>
+        <h2>✨ 唱什麼由你決定 ✨<br>請輸入一格字詞關鍵字</h2>
         <input type="text" id="wordInput" placeholder="在此輸入">
         <button onclick="sendWord()">送出</button>
     </div>
 
     <script>
-        // 💡 加上錯誤傾聽器，如果一開網頁套件就崩潰，立刻噴出原因
-        window.onerror = function(msg, url, line) {
-            alert("網頁初始化出錯: " + msg + "\n行數: " + line);
-            return false;
-        };
-
-        let socket;
-        try {
-            // 💡 強制讓 Socket 連接回當前的網址與通訊協定
-            socket = io(window.location.origin);
-        } catch(err) {
-            alert("Socket 初始化失敗: " + err.message);
-        }
-
+        // 💡 核心修改：不給特定網址，讓 io() 自動去抓當前連線，這在 Zeabur 環境下最安全穩定
+        const socket = io(); 
         const input = document.getElementById('wordInput');
 
         function sendWord() {
-            try {
-                const word = input.value.trim();
-                if (word !== '') {
-                    // 檢查伺服器連線狀態
-                    if (!socket || !socket.connected) {
-                        alert("⚠️ 錯誤：目前手機與後端伺服器斷開連線，請確認網路或重新整理！");
-                        return;
-                    }
-                    
-                    socket.emit('send_word', word);
-                    input.value = ''; 
-                    input.focus(); 
+            const word = input.value.trim();
+            if (word !== '') {
+                // 💡 安全檢查：如果還在連接中，給予提示而不是直接死掉
+                if (!socket.connected) {
+                    alert("⚠️ 系統正在嘗試與伺服器連線，請稍候 1-2 秒再試一次！");
+                    return;
                 }
-            } catch (error) {
-                // 💡 如果按下按鈕沒反應，這裡會強制彈出錯誤報告
-                alert("送出時發生程式錯誤: " + error.message);
+                
+                socket.emit('send_word', word);
+                input.value = ''; 
+                input.focus(); 
             }
         }
 
