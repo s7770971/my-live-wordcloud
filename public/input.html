@@ -14,8 +14,8 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            /* https://drive.google.com/file/d/1SLuD833r3cx9qd321QhdObvnk71PvZnr/view?usp=sharing */
-            background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964');
+            /* 💡 這裡已經完美對齊你放入 public 資料夾的手機專用背景圖 bg_mobile.jpg */
+            background-image: url('bg_mobile.jpg');
             background-size: cover;
             background-position: center;
         }
@@ -37,6 +37,7 @@
             margin-bottom: 25px;
             font-size: 22px;
             letter-spacing: 1px;
+            line-height: 1.4;
         }
         input { 
             font-size: 18px; 
@@ -48,6 +49,7 @@
             outline: none; 
             box-sizing: border-box;
             transition: all 0.3s;
+            text-align: center; /* 💡 讓輸入的字置中，看起來更精緻 */
         }
         input:focus { 
             border-color: #007bff;
@@ -76,8 +78,8 @@
 <body>
 
     <div class="card">
-        <h2>✨ 請輸入『一個字詞』為題 ex:愛 ✨</h2>
-        <input type="text" id="wordInput" placeholder="輸入文字 (最多1字)" maxlength="1">
+        <h2>✨ 請輸入『一個字詞』為題<br>ex: 愛 ✨</h2>
+        <input type="text" id="wordInput" placeholder="輸入 1 個字" maxlength="1">
         <button onclick="sendWord()">送出</button>
     </div>
 
@@ -87,7 +89,8 @@
 
         function sendWord() {
             const word = input.value.trim();
-            if (word !== '') {
+            // 💡 後端防呆判斷，確保真的只有 1 個字才送出
+            if (word.length === 1) {
                 socket.emit('send_word', word);
                 input.value = ''; 
                 input.focus(); 
