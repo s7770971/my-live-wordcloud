@@ -95,41 +95,82 @@
                     fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
                     weightFactor: 1, 
                     
-                    // 💡 1. 關鍵核心：把套件原生的繪製顏色設為透明（transparent）！
-                    // 這樣套件就不會自作聰明先去畫字，而是把舞台完全留給我們自己控制！
-                    color: 'transparent',
+                    // 💡 1. 修正：讓套件正常使用隨機藍綠色繪製（不可用透明），確保位置排版 100% 正確
+                    color: 'random-light',
                     
                     backgroundColor: 'transparent', 
                     rotateRatio: 0.25,   
                     minRotation: -0.2, 
                     maxRotation: 0.2,  
-                    gridSize: 15,      // 加大網格，留出絕對安全的空間給貼紙色塊
+                    gridSize: 18,      // 💡 加大網格間距，給漸層色塊留出空間，絕對不重疊擠爆
                     drawOutOfBound: true, 
                     wait: 10,
                     
-                    // 💡 2. 由我們全權接管繪製順序：【先畫底色塊，再疊加黑色字體】
+                    // 💡 2. 原地覆蓋魔法：套件畫好字的瞬間，我們立刻在原地疊加畫上「色塊」與「新黑字」
                     onWordPlot: function(item) {
                         const text = item[0];
                         const fontSize = item[1];
                         const x = item[2];
                         const y = item[3];
-                        const rotateRad = item[4]; // 套件計算出的傾斜弧度
+                        const rotateRad = item[4]; // 取得文字傾斜角度
 
                         ctx.save();
                         
-                        // 將畫布中心點移動到套件指定的文字座標，並進行旋轉
+                        // 1. 移動並旋轉畫筆，完全對齊套件的角度
                         ctx.translate(x, y);
                         ctx.rotate(rotateRad);
                         
-                        // 計算文字在當前字體大小下的精確寬度
+                        // 2. 設定與套件一模一樣的字體尺寸，精準計算寬度
                         ctx.font = '900 ' + fontSize + 'px "M PLUS Rounded 1c", "Noto Sans TC", sans-serif';
                         const textWidth = ctx.measureText(text).width;
                         
-                        // 精細微調貼紙內邊距（Padding）
+                        // 3. 計算貼紙底色塊的邊距
                         const padX = fontSize * 0.35;
                         const padY = fontSize * 0.18;
-                        
                         const rectW = textWidth + (padX * 2);
                         const rectH = fontSize + (padY * 2);
                         const rectX = -padX;
                         const rectY = -(fontSize * 0.8) - padY;
+                        
+                        // ─── ✨ 核心步驟 A：原地強行覆蓋「圓角漸層白底」 ✨ ───
+                        ctx.beginPath();
+                        ctx.roundRect(rectX, rectY, rectW, rectH, fontSize * 0.3);
+                        
+                        const gradient = ctx.createLinearGradient(rectX, rectY, rectX + rectW, rectY + rectH);
+                        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.98)'); 
+                        gradient.addColorStop(1, 'rgba(242, 242, 242, 0.90)');
+                        
+                        ctx.fillStyle = gradient;
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.25)'; // 貼紙立體陰影
+                        ctx.fill();
+                        
+                        ctx.shadowBlur = 0; // 清除色塊陰影
+
+                        // ─── ✨ 核心步驟 B：原地強行覆蓋「粗黑描邊邊框」 ✨ ───
+                        ctx.lineWidth = Math.max(fontSize * 0.12, 3.5); 
+                        ctx.strokeStyle = '#000000'; // 堅固純黑框
+                        ctx.lineJoin = 'round';     
+                        ctx.strokeText(text, 0, 0); 
+                        
+                        // ─── ✨ 核心步驟 C：原地強行覆蓋「黑色階字體」 ✨ ───
+                        const blackShades = ['#000000', '#1c1917', '#292524', '#0c0a09'];
+                        ctx.fillStyle = blackShades[Math.floor(Math.random() * blackShades.length)];
+                        ctx.fillText(text, 0, 0);
+                        
+                        ctx.restore(); 
+                    }
+                });
+
+                setTimeout(() => {
+                    ctx.clearRect(0, 0, canvas.width, 210); // 確保頂端 QR Code 區淨空
+                    canvas.classList.remove('refreshing');
+                }, 260);
+
+            }, 300); 
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+    </script>
+</body>
+</html>
