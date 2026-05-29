@@ -6,8 +6,7 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <style>
-        /* 載入最可愛、圓潤的 M PLUS Rounded 1c 字體 */
-        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&family=Noto+Sans+TC:wght@900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800&family=Noto+Sans+TC:wght@700&display=swap');
 
         body { 
             margin: 0; 
@@ -28,9 +27,20 @@
             content: '';
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(20, 20, 20, 0.4); /* 微透黑幕 */
+            background-color: rgba(20, 20, 20, 0.4); 
             z-index: 1;
         }
+
+        canvas { 
+            width: 100vw; 
+            height: 100vh; 
+            position: relative;
+            z-index: 2; 
+            transition: opacity 0.3s ease-in-out; 
+            opacity: 1;
+        }
+
+        .refreshing { opacity: 0.3; }
 
         .qrcode-container {
             position: absolute;
@@ -41,29 +51,6 @@
         }
         .qrcode-container img { width: 140px; height: 140px; display: block; }
         .qrcode-text { color: #222; font-size: 14px; font-weight: bold; margin-top: 6px; font-family: 'Noto Sans TC', sans-serif; }
-
-        /* 💡 1. 拋棄 Canvas！改用 Div 容器，完美避開 QR Code 區域 */
-        #cloud-div {
-            position: absolute;
-            top: 220px; /* 讓文字雲從 QR Code 下方才開始出現，絕對不重疊！ */
-            left: 0;
-            width: 100vw; 
-            height: calc(100vh - 220px);
-            z-index: 2; 
-            transition: opacity 0.3s ease-in-out;
-        }
-
-        .refreshing { opacity: 0.3; }
-
-        /* 💡 2. 這是最核心的「貼紙樣式」！用純 CSS 畫色塊，穩定率 100% */
-        .cloud-sticker {
-            background-color: rgba(255, 255, 255, 0.95); /* 漂亮的白底色塊 */
-            border: 3px solid #000000; /* 純黑邊框 */
-            border-radius: 16px; /* 圓角 */
-            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.4); /* 微白發光，讓貼紙浮出來 */
-            white-space: pre; /* 保留字體兩側的空白，把色塊撐開 */
-            line-height: 1.1; /* 讓文字在色塊內完美置中 */
-        }
     </style>
 </head>
 <body>
@@ -73,61 +60,120 @@
         <div class="qrcode-text">掃我加入歌詞投票</div>
     </div>
 
-    <div id="cloud-div"></div>
+    <canvas id="cloud-canvas"></canvas>
     
     <script>
+        // 💡 終極不當機魔法：攔截 Canvas 底層的原生「填色」功能！
+        const originalFillText = CanvasRenderingContext2D.prototype.fillText;
+        CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
+            // 只要偵測到套件準備畫置中的字體，我們立刻攔截！
+            if (x === 0 && y === 0 && this.textBaseline === 'middle') {
+                this.save();
+                
+                // 1. 取得當前字體大小與寬度
+                const fontSizeMatch = this.font.match(/(\d+(?:\.\d+)?)px/);
+                const fontSize = fontSizeMatch ? parseFloat(fontSizeMatch[1]) : 20;
+                const textWidth = this.measureText(text).width;
+                
+                // 2. 計算白底色塊的範圍
+                const padX = fontSize * 0.4;
+                const padY = fontSize * 0.2;
+                const rectW = textWidth + padX * 2;
+                const rectH = fontSize + padY * 2;
+                const rectX = -textWidth / 2 - padX;
+                const rectY = -fontSize / 2 - padY * 0.9;
+                const r = fontSize * 0.25; 
+                
+                // 3. 畫出純白微透色塊（使用最傳統、絕對不當機的畫法）
+                this.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                this.shadowBlur = 6;
+                this.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                
+                this.beginPath();
+                this.moveTo(rectX + r, rectY);
+                this.lineTo(rectX + rectW - r, rectY);
+                this.quadraticCurveTo(rectX + rectW, rectY, rectX + rectW, rectY + r);
+                this.lineTo(rectX + rectW, rectY + rectH - r);
+                this.quadraticCurveTo(rectX + rectW, rectY + rectH, rectX + rectW - r, rectY + rectH);
+                this.lineTo(rectX + r, rectY + rectH);
+                this.quadraticCurveTo(rectX, rectY + rectH, rectX, rectY + rectH - r);
+                this.lineTo(rectX, rectY + r);
+                this.quadraticCurveTo(rectX, rectY, rectX + r, rectY);
+                this.closePath();
+                this.fill();
+                
+                this.shadowBlur = 0; // 關閉陰影，確保字體乾淨
+                
+                // 4. 畫上純黑邊框
+                this.lineWidth = Math.max(fontSize * 0.1, 2.5);
+                this.strokeStyle = '#000000';
+                this.lineJoin = 'round';
+                this.strokeText(text, x, y);
+                
+                this.restore();
+            }
+            
+            // 5. 放行！讓原本的畫筆把黑色的字體疊加在最上層！
+            originalFillText.apply(this, arguments);
+        };
+
         const socket = io(window.location.origin);
-        const cloudDiv = document.getElementById('cloud-div');
+        const canvas = document.getElementById('cloud-canvas');
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
 
         let renderTimeout;
 
         socket.on('update_cloud', (wordCounts) => {
             clearTimeout(renderTimeout);
-            cloudDiv.classList.add('refreshing');
+            canvas.classList.add('refreshing');
 
             renderTimeout = setTimeout(() => {
-                // 每次收到新字，先把舊的貼紙全部清空
-                cloudDiv.innerHTML = ''; 
-
                 const list = Object.keys(wordCounts).map(word => {
                     const count = wordCounts[word];
                     let baseSize = Math.sqrt(count) * 16 + 26; 
                     if (word.length > 1) {
                         baseSize = baseSize * (2.2 / word.length) + 6;
                     }
-                    // 💡 刻意在字的左右加空格，用來完美撐開背景的白色塊！
-                    return [' ' + word + ' ', Math.max(baseSize, 20)]; 
+                    return [word, Math.max(baseSize, 20)]; 
                 }); 
+                
+                const ctx = canvas.getContext('2d');
 
-                WordCloud(cloudDiv, { 
+                WordCloud(canvas, { 
                     list: list, 
                     fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
                     weightFactor: 1, 
                     
-                    // 讓字體套用你的黑色系色階
+                    // 💡 黑色系色階
                     color: function() {
                         const blackShades = ['#000000', '#1c1917', '#292524', '#44403c', '#0c0a09'];
                         return blackShades[Math.floor(Math.random() * blackShades.length)];
                     },
                     
-                    // 💡 把上面寫好的 CSS 貼紙樣式，套用到每一個字上！
-                    classes: 'cloud-sticker', 
-                    
                     backgroundColor: 'transparent', 
                     rotateRatio: 0.25,   
                     minRotation: -0.2, 
                     maxRotation: 0.2,  
-                    gridSize: 15,      // 留出足夠的網格空間給貼紙
-                    drawOutOfBound: false, 
+                    gridSize: 14, // 💡 給白底色塊預留了足夠的網格空間
+                    drawOutOfBound: true, 
                     wait: 10
+                    // 💡 徹底移除會當機的 onWordPlot，全靠上面攔截畫筆！
                 });
 
                 setTimeout(() => {
-                    cloudDiv.classList.remove('refreshing');
+                    ctx.clearRect(0, 0, canvas.width, 210); // 確保 QR Code 區淨空
+                    canvas.classList.remove('refreshing');
                 }, 260);
 
             }, 300); 
         });
+
+        window.addEventListener('resize', resizeCanvas);
     </script>
 </body>
 </html>
