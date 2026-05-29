@@ -50,4 +50,75 @@
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
             text-align: center;
         }
-        .qrcode-container img { width: 140px; height: 140px; display:
+        .qrcode-container img { width: 140px; height: 140px; display: block; }
+        .qrcode-text { color: #222; font-size: 14px; font-weight: bold; margin-top: 6px; font-family: 'Noto Sans TC', sans-serif; }
+    </style>
+</head>
+<body>
+
+    <div class="qrcode-container">
+        <img src="qrcode.png" alt="掃描投票">
+        <div class="qrcode-text">掃我加入歌詞投票</div>
+    </div>
+
+    <canvas id="cloud-canvas"></canvas>
+    
+    <script>
+        const socket = io(window.location.origin);
+        const canvas = document.getElementById('cloud-canvas');
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+
+        let renderTimeout;
+
+        socket.on('update_cloud', (wordCounts) => {
+            clearTimeout(renderTimeout);
+            canvas.classList.add('refreshing');
+
+            renderTimeout = setTimeout(() => {
+                const list = Object.keys(wordCounts).map(word => {
+                    const count = wordCounts[word];
+                    let baseSize = Math.sqrt(count) * 16 + 26; 
+                    if (word.length > 1) {
+                        baseSize = baseSize * (2.2 / word.length) + 6;
+                    }
+                    return [word, Math.max(baseSize, 20)]; 
+                }); 
+                
+                const ctx = canvas.getContext('2d');
+
+                WordCloud(canvas, { 
+                    list: list, 
+                    fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
+                    weightFactor: 1, 
+                    
+                    // 保持你的黑色系色階
+                    color: function() {
+                        const blackShades = [
+                            '#000000', // 純黑
+                            '#1c1917', // 深炭灰
+                            '#292524', // 石墨灰
+                            '#44403c', // 焦灰
+                            '#0c0a09'  // 極光黑
+                        ];
+                        return blackShades[Math.floor(Math.random() * blackShades.length)];
+                    },
+                    
+                    backgroundColor: 'transparent', 
+                    rotateRatio: 0.25,   
+                    minRotation: -0.2, 
+                    maxRotation: 0.2,  
+                    gridSize: 10,  // 💡 稍微調大一點，避免色塊互相重疊太多    
+                    drawOutOfBound: true, 
+                    wait: 10,
+                    
+                    onWordPlot: function(item) {
+                        const text = item[0];
+                        const fontSize = item[1];
+                        const x = item[2];
+                        const y = item[3];
+                        const rotateRad =
