@@ -6,7 +6,8 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800&family=Noto+Sans+TC:wght@700&display=swap');
+        /* 載入最可愛、圓潤的 M PLUS Rounded 1c 字體 */
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&family=Noto+Sans+TC:wght@900&display=swap');
 
         body { 
             margin: 0; 
@@ -27,20 +28,9 @@
             content: '';
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(20, 20, 20, 0.4); 
+            background-color: rgba(20, 20, 20, 0.4); /* 微透黑幕 */
             z-index: 1;
         }
-
-        canvas { 
-            width: 100vw; 
-            height: 100vh; 
-            position: relative;
-            z-index: 2; 
-            transition: opacity 0.3s ease-in-out; 
-            opacity: 1;
-        }
-
-        .refreshing { opacity: 0.3; }
 
         .qrcode-container {
             position: absolute;
@@ -51,6 +41,29 @@
         }
         .qrcode-container img { width: 140px; height: 140px; display: block; }
         .qrcode-text { color: #222; font-size: 14px; font-weight: bold; margin-top: 6px; font-family: 'Noto Sans TC', sans-serif; }
+
+        /* 💡 1. 拋棄 Canvas！改用 Div 容器，完美避開 QR Code 區域 */
+        #cloud-div {
+            position: absolute;
+            top: 220px; /* 讓文字雲從 QR Code 下方才開始出現，絕對不重疊！ */
+            left: 0;
+            width: 100vw; 
+            height: calc(100vh - 220px);
+            z-index: 2; 
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .refreshing { opacity: 0.3; }
+
+        /* 💡 2. 這是最核心的「貼紙樣式」！用純 CSS 畫色塊，穩定率 100% */
+        .cloud-sticker {
+            background-color: rgba(255, 255, 255, 0.95); /* 漂亮的白底色塊 */
+            border: 3px solid #000000; /* 純黑邊框 */
+            border-radius: 16px; /* 圓角 */
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.4); /* 微白發光，讓貼紙浮出來 */
+            white-space: pre; /* 保留字體兩側的空白，把色塊撐開 */
+            line-height: 1.1; /* 讓文字在色塊內完美置中 */
+        }
     </style>
 </head>
 <body>
@@ -60,116 +73,61 @@
         <div class="qrcode-text">掃我加入歌詞投票</div>
     </div>
 
-    <canvas id="cloud-canvas"></canvas>
+    <div id="cloud-div"></div>
     
     <script>
         const socket = io(window.location.origin);
-        const canvas = document.getElementById('cloud-canvas');
-        
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resizeCanvas();
+        const cloudDiv = document.getElementById('cloud-div');
 
         let renderTimeout;
 
         socket.on('update_cloud', (wordCounts) => {
             clearTimeout(renderTimeout);
-            canvas.classList.add('refreshing');
+            cloudDiv.classList.add('refreshing');
 
             renderTimeout = setTimeout(() => {
+                // 每次收到新字，先把舊的貼紙全部清空
+                cloudDiv.innerHTML = ''; 
+
                 const list = Object.keys(wordCounts).map(word => {
                     const count = wordCounts[word];
                     let baseSize = Math.sqrt(count) * 16 + 26; 
                     if (word.length > 1) {
                         baseSize = baseSize * (2.2 / word.length) + 6;
                     }
-                    return [word, Math.max(baseSize, 20)]; 
+                    // 💡 刻意在字的左右加空格，用來完美撐開背景的白色塊！
+                    return [' ' + word + ' ', Math.max(baseSize, 20)]; 
                 }); 
-                
-                const ctx = canvas.getContext('2d');
 
-                WordCloud(canvas, { 
+                WordCloud(cloudDiv, { 
                     list: list, 
                     fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
                     weightFactor: 1, 
                     
-                    color: 'random-light', 
+                    // 讓字體套用你的黑色系色階
+                    color: function() {
+                        const blackShades = ['#000000', '#1c1917', '#292524', '#44403c', '#0c0a09'];
+                        return blackShades[Math.floor(Math.random() * blackShades.length)];
+                    },
+                    
+                    // 💡 把上面寫好的 CSS 貼紙樣式，套用到每一個字上！
+                    classes: 'cloud-sticker', 
+                    
                     backgroundColor: 'transparent', 
                     rotateRatio: 0.25,   
                     minRotation: -0.2, 
                     maxRotation: 0.2,  
-                    gridSize: 12, 
-                    drawOutOfBound: true, 
-                    wait: 10,
-                    
-                    onWordPlot: function(item) {
-                        const text = item[0];
-                        const fontSize = item[1];
-                        const x = item[2];
-                        const y = item[3];
-                        const rotateRad = item[4] || 0;
-
-                        ctx.save();
-                        ctx.translate(x, y);
-                        ctx.rotate(rotateRad);
-
-                        ctx.font = '700 ' + fontSize + 'px "M PLUS Rounded 1c", "Noto Sans TC", sans-serif';
-                        const textWidth = ctx.measureText(text).width;
-
-                        const padX = fontSize * 0.35;
-                        const padY = fontSize * 0.2;
-                        const rectW = textWidth + (padX * 2);
-                        const rectH = fontSize + (padY * 2);
-                        const rectX = -padX;
-                        const rectY = -(fontSize * 0.8) - padY;
-
-                        // ─── 1. 絕對不當機的手工圓角畫法 ───
-                        const r = fontSize * 0.25; // 圓角半徑
-                        ctx.beginPath();
-                        ctx.moveTo(rectX + r, rectY);
-                        ctx.lineTo(rectX + rectW - r, rectY);
-                        ctx.quadraticCurveTo(rectX + rectW, rectY, rectX + rectW, rectY + r);
-                        ctx.lineTo(rectX + rectW, rectY + rectH - r);
-                        ctx.quadraticCurveTo(rectX + rectW, rectY + rectH, rectX + rectW - r, rectY + rectH);
-                        ctx.lineTo(rectX + r, rectY + rectH);
-                        ctx.quadraticCurveTo(rectX, rectY + rectH, rectX, rectY + rectH - r);
-                        ctx.lineTo(rectX, rectY + r);
-                        ctx.quadraticCurveTo(rectX, rectY, rectX + r, rectY);
-                        ctx.closePath();
-
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; 
-                        ctx.shadowBlur = 6;
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.25)'; 
-                        ctx.fill();
-
-                        ctx.shadowBlur = 0; 
-
-                        // ─── 2. 畫上純黑框描邊 ───
-                        ctx.lineWidth = Math.max(fontSize * 0.12, 3); 
-                        ctx.strokeStyle = '#000000'; 
-                        ctx.lineJoin = 'round';     
-                        ctx.strokeText(text, 0, 0); 
-                        
-                        // ─── 3. 填上黑色階字體 ───
-                        const blackShades = ['#000000', '#1c1917', '#292524', '#44403c', '#0c0a09'];
-                        ctx.fillStyle = blackShades[Math.floor(Math.random() * blackShades.length)];
-                        ctx.fillText(text, 0, 0);
-                        
-                        ctx.restore();
-                    }
+                    gridSize: 15,      // 留出足夠的網格空間給貼紙
+                    drawOutOfBound: false, 
+                    wait: 10
                 });
 
                 setTimeout(() => {
-                    ctx.clearRect(0, 0, canvas.width, 210); 
-                    canvas.classList.remove('refreshing');
+                    cloudDiv.classList.remove('refreshing');
                 }, 260);
 
             }, 300); 
         });
-
-        window.addEventListener('resize', resizeCanvas);
     </script>
 </body>
 </html>
