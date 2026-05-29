@@ -23,7 +23,7 @@
             position: relative;
             background-color: #1a1a1a;
         }
-         
+        
         body::before {
             content: '';
             position: absolute;
@@ -96,12 +96,52 @@
                     fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
                     weightFactor: 1, 
                     
-                    // 💡 【修正 1：換成黑色色階調色盤】
+                    // 💡 【只改這裡：換成黑色系色階】
                     color: function() {
                         const blackShades = [
                             '#000000', // 純黑
-                            '#1c1917', // 石頭灰
-                            '#292524', // 玄武岩
+                            '#1c1917', // 深炭灰
+                            '#292524', // 石墨灰
+                            '#44403c', // 焦灰
                             '#0c0a09'  // 極光黑
                         ];
-                        return blackShades[Math
+                        return blackShades[Math.floor(Math.random() * blackShades.length)];
+                    },
+                    
+                    backgroundColor: 'transparent', 
+                    rotateRatio: 0.25,   
+                    minRotation: -0.2, 
+                    maxRotation: 0.2,  
+                    gridSize: 6,      
+                    drawOutOfBound: true, 
+                    wait: 10,
+                    
+                    onWordPlot: function(item) {
+                        ctx.save();
+                        
+                        // 純黑框描邊
+                        ctx.lineWidth = Math.max(item[1] * 0.12, 3); 
+                        ctx.strokeStyle = '#000000'; 
+                        ctx.lineJoin = 'round';     
+                        ctx.strokeText(item[0], item[2], item[3]); 
+                        
+                        // 💡 配合黑色系，把外發光調成柔和的微白光（把原本的藍光拔掉）
+                        ctx.shadowBlur = 8;
+                        ctx.shadowColor = 'rgba(255, 255, 255, 0.6)';
+                        
+                        ctx.restore();
+                    }
+                });
+
+                setTimeout(() => {
+                    ctx.clearRect(0, 0, canvas.width, 210); // 確保 QR Code 區淨空
+                    canvas.classList.remove('refreshing');
+                }, 260);
+
+            }, 300); 
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+    </script>
+</body>
+</html>
