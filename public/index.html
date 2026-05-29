@@ -31,14 +31,15 @@
             z-index: 1;
         }
 
-        canvas { 
-            width: 100vw; 
-            height: 100vh; 
-            position: relative;
-            z-index: 2; 
-            transition: opacity 0.3s ease-in-out; 
-            opacity: 1;
+        /* 💡 核心修改：將兩個畫布完全重疊，透過 z-index 物理分層 */
+        .canvas-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            transition: opacity 0.3s ease-in-out;
         }
+        #bg-canvas { z-index: 2; } /* 底層：專門用來畫漸層白底色塊 */
+        #fg-canvas { z-index: 3; pointer-events: none; } /* 頂層：專門用來畫黑色字體，絕對不被覆蓋 */
 
         .refreshing { opacity: 0.3; }
 
@@ -60,15 +61,17 @@
         <div class="qrcode-text">掃我加入歌詞投票</div>
     </div>
 
-    <canvas id="cloud-canvas"></canvas>
+    <canvas id="bg-canvas" class="canvas-layer"></canvas>
+    <canvas id="fg-canvas" class="canvas-layer"></canvas>
     
     <script>
         const socket = io(window.location.origin);
-        const canvas = document.getElementById('cloud-canvas');
+        const bgCanvas = document.getElementById('bg-canvas');
+        const fgCanvas = document.getElementById('fg-canvas');
         
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight;
+            fgCanvas.width = window.innerWidth; fgCanvas.height = window.innerHeight;
         }
         resizeCanvas();
 
@@ -76,7 +79,8 @@
 
         socket.on('update_cloud', (wordCounts) => {
             clearTimeout(renderTimeout);
-            canvas.classList.add('refreshing');
+            bgCanvas.classList.add('refreshing');
+            fgCanvas.classList.add('refreshing');
 
             renderTimeout = setTimeout(() => {
                 const list = Object.keys(wordCounts).map(word => {
@@ -88,83 +92,95 @@
                     return [word, Math.max(baseSize, 20)]; 
                 }); 
 
-                const ctx = canvas.getContext('2d');
+                // 取得上下兩個圖層的獨立畫筆
+                const bgCtx = bgCanvas.getContext('2d');
+                const fgCtx = fgCanvas.getContext('2d');
+                
+                // 每次重繪前，把兩張畫布通通清空乾淨
+                bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+                fgCtx.clearRect(0, 0, fgCanvas.width, fgCanvas.height);
 
-                WordCloud(canvas, { 
+                // 讓 WordCloud2 在底層畫布跑運算排版
+                WordCloud(bgCanvas, { 
                     list: list, 
                     fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
                     weightFactor: 1, 
                     
-                    // 💡 1. 修正：讓套件正常使用隨機藍綠色繪製（不可用透明），確保位置排版 100% 正確
-                    color: 'random-light',
-                    
+                    // 讓套件原生只去填入極淡透明度，這樣即使它最後蓋上彩色，也根本看不見！
+                    color: 'rgba(0,0,0,0.01)', 
                     backgroundColor: 'transparent', 
                     rotateRatio: 0.25,   
                     minRotation: -0.2, 
                     maxRotation: 0.2,  
-                    gridSize: 18,      // 💡 加大網格間距，給漸層色塊留出空間，絕對不重疊擠爆
+                    gridSize: 20,      // 加大間距給色塊呼吸
                     drawOutOfBound: true, 
                     wait: 10,
                     
-                    // 💡 2. 原地覆蓋魔法：套件畫好字的瞬間，我們立刻在原地疊加畫上「色塊」與「新黑字」
+                    // 💡 圖層大作戰：徹底拆解繪製權限
                     onWordPlot: function(item) {
                         const text = item[0];
                         const fontSize = item[1];
                         const x = item[2];
                         const y = item[3];
-                        const rotateRad = item[4]; // 取得文字傾斜角度
+                        const rotateRad = item[4];
 
-                        ctx.save();
+                        // ─── 🛠️ 步驟 1：在【底層畫布 (bgCtx)】上，畫出漸層白底色塊 ───
+                        bgCtx.save();
+                        bgCtx.translate(x, y);
+                        bgCtx.rotate(rotateRad);
                         
-                        // 1. 移動並旋轉畫筆，完全對齊套件的角度
-                        ctx.translate(x, y);
-                        ctx.rotate(rotateRad);
+                        bgCtx.font = '900 ' + fontSize + 'px "M PLUS Rounded 1c", "Noto Sans TC", sans-serif';
+                        const textWidth = bgCtx.measureText(text).width;
                         
-                        // 2. 設定與套件一模一樣的字體尺寸，精準計算寬度
-                        ctx.font = '900 ' + fontSize + 'px "M PLUS Rounded 1c", "Noto Sans TC", sans-serif';
-                        const textWidth = ctx.measureText(text).width;
-                        
-                        // 3. 計算貼紙底色塊的邊距
-                        const padX = fontSize * 0.35;
-                        const padY = fontSize * 0.18;
+                        const padX = fontSize * 0.38;
+                        const padY = fontSize * 0.2;
                         const rectW = textWidth + (padX * 2);
                         const rectH = fontSize + (padY * 2);
                         const rectX = -padX;
                         const rectY = -(fontSize * 0.8) - padY;
                         
-                        // ─── ✨ 核心步驟 A：原地強行覆蓋「圓角漸層白底」 ✨ ───
-                        ctx.beginPath();
-                        ctx.roundRect(rectX, rectY, rectW, rectH, fontSize * 0.3);
+                        bgCtx.beginPath();
+                        bgCtx.roundRect(rectX, rectY, rectW, rectH, fontSize * 0.32);
                         
-                        const gradient = ctx.createLinearGradient(rectX, rectY, rectX + rectW, rectY + rectH);
-                        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.98)'); 
-                        gradient.addColorStop(1, 'rgba(242, 242, 242, 0.90)');
+                        const gradient = bgCtx.createLinearGradient(rectX, rectY, rectX + rectW, rectY + rectH);
+                        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.98)'); // 飽滿的漸層白底塊
+                        gradient.addColorStop(1, 'rgba(240, 240, 240, 0.92)');
+                        bgCtx.fillStyle = gradient;
                         
-                        ctx.fillStyle = gradient;
-                        ctx.shadowBlur = 8;
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.25)'; // 貼紙立體陰影
-                        ctx.fill();
-                        
-                        ctx.shadowBlur = 0; // 清除色塊陰影
+                        bgCtx.shadowBlur = 10;
+                        bgCtx.shadowColor = 'rgba(0, 0, 0, 0.3)'; // 讓白塊有立體陰影
+                        bgCtx.fill();
+                        bgCtx.restore();
 
-                        // ─── ✨ 核心步驟 B：原地強行覆蓋「粗黑描邊邊框」 ✨ ───
-                        ctx.lineWidth = Math.max(fontSize * 0.12, 3.5); 
-                        ctx.strokeStyle = '#000000'; // 堅固純黑框
-                        ctx.lineJoin = 'round';     
-                        ctx.strokeText(text, 0, 0); 
+                        // ─── 🛠️ 步驟 2：在【頂層畫布 (fgCtx)】上，精準疊加純黑框與黑色階字體 ───
+                        // 因為這是另一個畫布，套件永遠不可能爬到這裡來蓋掉你的顏色！
+                        fgCtx.save();
+                        fgCtx.translate(x, y);
+                        fgCtx.rotate(rotateRad);
+                        fgCtx.font = '900 ' + fontSize + 'px "M PLUS Rounded 1c", "Noto Sans TC", sans-serif';
                         
-                        // ─── ✨ 核心步驟 C：原地強行覆蓋「黑色階字體」 ✨ ───
-                        const blackShades = ['#000000', '#1c1917', '#292524', '#0c0a09'];
-                        ctx.fillStyle = blackShades[Math.floor(Math.random() * blackShades.length)];
-                        ctx.fillText(text, 0, 0);
+                        // 先畫純黑邊框（黑框）
+                        fgCtx.lineWidth = Math.max(fontSize * 0.12, 3.5); 
+                        fgCtx.strokeStyle = '#000000'; 
+                        fgCtx.lineJoin = 'round';     
+                        fgCtx.strokeText(text, 0, 0); 
                         
-                        ctx.restore(); 
+                        // 再填入「黑色階系」顏色
+                        const blackShades = ['#000000', '#1c1917', '#252525', '#111111'];
+                        fgCtx.fillStyle = blackShades[Math.floor(Math.random() * blackShades.length)];
+                        fgCtx.fillText(text, 0, 0);
+                        
+                        fgCtx.restore();
                     }
                 });
 
                 setTimeout(() => {
-                    ctx.clearRect(0, 0, canvas.width, 210); // 確保頂端 QR Code 區淨空
-                    canvas.classList.remove('refreshing');
+                    // 雙重保險清空頂端 QR Code 禁區
+                    bgCtx.clearRect(0, 0, bgCanvas.width, 210);
+                    fgCtx.clearRect(0, 0, fgCanvas.width, 210);
+                    
+                    bgCanvas.classList.remove('refreshing');
+                    fgCanvas.classList.remove('refreshing');
                 }, 260);
 
             }, 300); 
