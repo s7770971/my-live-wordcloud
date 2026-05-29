@@ -28,22 +28,15 @@
             content: '';
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(20, 20, 20, 0.4); /* 背景稍微壓暗，讓白色遮罩更跳 */
+            background-color: rgba(20, 20, 20, 0.4); 
             z-index: 1;
         }
 
-        /* 💡 核心修改：將 Canvas 直接變成圓角長方形白色遮罩 */
+        /* 💡 復原：把畫布變回全螢幕，拔除全域白色大遮罩 */
         canvas { 
-            position: absolute;
-            top: 220px; /* 完美避開上方的 QR Code 區域 */
-            left: 5vw;
-            width: 90vw; /* 留出左右兩邊的邊距 */
-            height: calc(100vh - 250px); /* 留出下方的邊距 */
-            
-            background-color: rgba(255, 255, 255, 0.85); /* 長方形高透白底遮罩 */
-            border-radius: 24px; /* 柔和的圓角設計 */
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4); /* 讓白板立體浮現 */
-            
+            width: 100vw; 
+            height: 100vh; 
+            position: relative;
             z-index: 2; 
             transition: opacity 0.3s ease-in-out; 
             opacity: 1;
@@ -76,9 +69,9 @@
         const canvas = document.getElementById('cloud-canvas');
         
         function resizeCanvas() {
-            // 💡 確保畫布的內部解析度跟 CSS 的白板尺寸完美吻合，字體才不會變形
-            canvas.width = window.innerWidth * 0.9;
-            canvas.height = window.innerHeight - 250;
+            // 💡 復原：畫布內部解析度對齊全螢幕尺寸
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
         resizeCanvas();
 
@@ -105,45 +98,72 @@
                     fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
                     weightFactor: 1, 
                     
-                    // 保持你指定的黑色系色階
-                    color: function() {
-                        const blackShades = [
-                            '#000000', // 純黑
-                            '#1c1917', // 深炭灰
-                            '#292524', // 石墨灰
-                            '#44403c', // 焦灰
-                            '#0c0a09'  // 極光黑
-                        ];
-                        return blackShades[Math.floor(Math.random() * blackShades.length)];
-                    },
-                    
-                    backgroundColor: 'transparent', // 讓 CSS 的白板透上來
+                    // 讓套件先以隨機色繪製算好位置（避免當機），我們後續會在原地蓋上你的專屬設計
+                    color: 'random-light', 
+                    backgroundColor: 'transparent', 
                     rotateRatio: 0.25,   
                     minRotation: -0.2, 
                     maxRotation: 0.2,  
-                    gridSize: 8,      
-                    drawOutOfBound: false, // 💡 嚴格限制字體不准超出白色遮罩邊緣
+                    gridSize: 12, // 網格稍微調大，讓每個字背後的色塊有舒適的空間不至於過度重疊
+                    drawOutOfBound: true, 
                     wait: 10,
                     
+                    // 💡 核心修改：原地蓋上「獨立白底色塊」與「黑色階字體」
                     onWordPlot: function(item) {
+                        const text = item[0];
+                        const fontSize = item[1];
+                        const x = item[2];
+                        const y = item[3];
+                        const rotateRad = item[4] || 0;
+
                         ctx.save();
                         
-                        // 純黑框描邊
-                        ctx.lineWidth = Math.max(item[1] * 0.12, 3); 
+                        // 將畫筆移動到文字中心點並跟隨設定的傾斜角度旋轉
+                        ctx.translate(x, y);
+                        ctx.rotate(rotateRad);
+
+                        // 測量實際文字寬度
+                        ctx.font = '700 ' + fontSize + 'px "M PLUS Rounded 1c", "Noto Sans TC", sans-serif';
+                        const textWidth = ctx.measureText(text).width;
+
+                        // 計算色塊尺寸與邊距
+                        const padX = fontSize * 0.35;
+                        const padY = fontSize * 0.2;
+                        const rectW = textWidth + (padX * 2);
+                        const rectH = fontSize + (padY * 2);
+                        const rectX = -padX;
+                        const rectY = -(fontSize * 0.8) - padY;
+
+                        // ─── 1. 先畫背後的「白底圓角色塊」 ───
+                        ctx.beginPath();
+                        ctx.roundRect(rectX, rectY, rectW, rectH, fontSize * 0.25);
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; // 高透白底色塊
+                        ctx.shadowBlur = 6;
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.25)'; // 淡淡的陰影讓色塊立體
+                        ctx.fill();
+
+                        ctx.shadowBlur = 0; // 關閉陰影，確保後續字體線條乾淨
+
+                        // ─── 2. 畫上「純黑框描邊」 ───
+                        ctx.lineWidth = Math.max(fontSize * 0.12, 3); 
                         ctx.strokeStyle = '#000000'; 
                         ctx.lineJoin = 'round';     
-                        ctx.strokeText(item[0], item[2], item[3]); 
+                        ctx.strokeText(text, 0, 0); 
                         
-                        // 💡 既然底板是白色，外發光我們改為「極淡的黑色陰影」，讓字體從白板上立體浮現！
-                        ctx.shadowBlur = 4;
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+                        // ─── 3. 填滿「黑色階字體」 ───
+                        const blackShades = [
+                            '#000000', '#1c1917', '#292524', '#44403c', '#0c0a09'
+                        ];
+                        ctx.fillStyle = blackShades[Math.floor(Math.random() * blackShades.length)];
+                        ctx.fillText(text, 0, 0);
                         
                         ctx.restore();
                     }
                 });
 
-                // 因為區域已經完美隔開，不再需要清除頂端，直接解除 loading 狀態
+                // 因為變回全螢幕，重新加回頂端 QR Code 安全區的強制清理
                 setTimeout(() => {
+                    ctx.clearRect(0, 0, canvas.width, 210); 
                     canvas.classList.remove('refreshing');
                 }, 260);
 
