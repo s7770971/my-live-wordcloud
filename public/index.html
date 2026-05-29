@@ -6,7 +6,6 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <style>
-        /* 1. 載入圓潤、厚實的最可愛字體 */
         @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&family=Noto+Sans+TC:wght@900&display=swap');
 
         body { 
@@ -28,7 +27,7 @@
             content: '';
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(20, 20, 20, 0.3); /* 保持 0.3 開放感微透黑幕 */
+            background-color: rgba(20, 20, 20, 0.3); /* 保持 0.3 微透黑幕 */
             z-index: 1;
         }
 
@@ -96,78 +95,41 @@
                     fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
                     weightFactor: 1, 
                     
-                    // 💡 1. 調整為「黑色色階」：讓字體呈現不同層次的潮流黑灰
-                    color: function() {
-                        const blackShades = ['#000000', '#1c1917', '#292524', '#0c0a09'];
-                        return blackShades[Math.floor(Math.random() * blackShades.length)];
-                    },
+                    // 💡 1. 關鍵核心：把套件原生的繪製顏色設為透明（transparent）！
+                    // 這樣套件就不會自作聰明先去畫字，而是把舞台完全留給我們自己控制！
+                    color: 'transparent',
                     
                     backgroundColor: 'transparent', 
                     rotateRatio: 0.25,   
                     minRotation: -0.2, 
                     maxRotation: 0.2,  
-                    gridSize: 12,      // 稍微拉大網格，留出空間給文字背後的漸層白色塊底圖
+                    gridSize: 15,      // 加大網格，留出絕對安全的空間給貼紙色塊
                     drawOutOfBound: true, 
                     wait: 10,
                     
-                    // 💡 2. 核心大改版：當套件決定好文字位置後，立刻動態繪製「漸層白圓角色塊底圖」
+                    // 💡 2. 由我們全權接管繪製順序：【先畫底色塊，再疊加黑色字體】
                     onWordPlot: function(item) {
-                        ctx.save();
-                        
                         const text = item[0];
                         const fontSize = item[1];
                         const x = item[2];
                         const y = item[3];
+                        const rotateRad = item[4]; // 套件計算出的傾斜弧度
+
+                        ctx.save();
                         
-                        // 計算文字所需的寬度，並加上內邊距（Padding）
+                        // 將畫布中心點移動到套件指定的文字座標，並進行旋轉
+                        ctx.translate(x, y);
+                        ctx.rotate(rotateRad);
+                        
+                        // 計算文字在當前字體大小下的精確寬度
                         ctx.font = '900 ' + fontSize + 'px "M PLUS Rounded 1c", "Noto Sans TC", sans-serif';
                         const textWidth = ctx.measureText(text).width;
-                        const padX = fontSize * 0.4;
-                        const padY = fontSize * 0.2;
                         
-                        // 定義色塊的矩形範圍
+                        // 精細微調貼紙內邊距（Padding）
+                        const padX = fontSize * 0.35;
+                        const padY = fontSize * 0.18;
+                        
                         const rectW = textWidth + (padX * 2);
                         const rectH = fontSize + (padY * 2);
-                        const rectX = x - padX;
-                        const rectY = y - (fontSize * 0.8) - padY;
-                        
-                        // 開始繪製圓角矩形色塊
-                        ctx.beginPath();
-                        ctx.roundRect(rectX, rectY, rectW, rectH, fontSize * 0.25); // 依字體大小調整圓角弧度
-                        
-                        // 💡 創造高級的「漸層白」：由右上至左下，從微透白過渡到優雅半透白
-                        const gradient = ctx.createLinearGradient(rectX, rectY, rectX + rectW, rectY + rectH);
-                        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-                        gradient.addColorStop(1, 'rgba(245, 245, 245, 0.75)');
-                        
-                        ctx.fillStyle = gradient;
-                        
-                        // 為色塊加上微弱的黑色立體陰影，讓貼紙感更真實
-                        ctx.shadowBlur = 6;
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
-                        ctx.fill();
-                        
-                        ctx.restore(); // 畫完底層色塊，釋放畫筆狀態
-                        
-                        // 💡 3. 色塊畫完後，套件會把黑色系字體填上去，我們手動補上清晰的純黑框描邊
-                        ctx.save();
-                        ctx.lineWidth = Math.max(fontSize * 0.1, 2.5); 
-                        ctx.strokeStyle = '#000000'; 
-                        ctx.lineJoin = 'round';     
-                        ctx.strokeText(text, x, y); 
-                        ctx.restore();
-                    }
-                });
-
-                setTimeout(() => {
-                    ctx.clearRect(0, 0, canvas.width, 210); // 確保頂端 QR Code 區淨空
-                    canvas.classList.remove('refreshing');
-                }, 260);
-
-            }, 300); 
-        });
-
-        window.addEventListener('resize', resizeCanvas);
-    </script>
-</body>
-</html>
+                        const rectX = -padX;
+                        const rectY = -(fontSize * 0.8) - padY;
