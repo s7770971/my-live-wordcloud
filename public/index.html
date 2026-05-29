@@ -6,8 +6,8 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <style>
-        /* 1. 載入更可愛、圓潤的 M PLUS Rounded 1c 字體 */
-        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800&family=Noto+Sans+TC:wght@700&display=swap');
+        /* 1. 載入極具肉感、最適合黑白對比的 M PLUS Rounded 1c 字體 */
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&family=Noto+Sans+TC:wght@900&display=swap');
 
         body { 
             margin: 0; 
@@ -21,14 +21,16 @@
             height: 100vh; 
             overflow: hidden;
             position: relative;
-            background-color: #1a1a1a;
+            background-color: #ffffff; /* 底色改為純白 */
         }
         
+        /* 💡 核心修改：從黑幕徹底切換為「白底遮罩（白紗）」 */
+        /* 0.7 代表 70% 的白牆遮罩，既能壓低背景圖的干擾，又能保留圖的輪廓 */
         body::before {
             content: '';
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(20, 20, 20, 0.3); /* 保持 0.3 開放感微透黑幕 */
+            background-color: rgba(255, 255, 255, 0.7); 
             z-index: 1;
         }
 
@@ -43,15 +45,17 @@
 
         .refreshing { opacity: 0.3; }
 
+        /* 配合整體黑白極簡風，QR Code 外框加上細緻的黑陰影，看起來更像藝術品 */
         .qrcode-container {
             position: absolute;
             top: 20px; left: 50%; transform: translateX(-50%); 
             z-index: 999; background: white; padding: 12px; border-radius: 12px;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
             text-align: center;
+            border: 1px solid #eee;
         }
         .qrcode-container img { width: 140px; height: 140px; display: block; }
-        .qrcode-text { color: #222; font-size: 14px; font-weight: bold; margin-top: 6px; font-family: 'Noto Sans TC', sans-serif; }
+        .qrcode-text { color: #111; font-size: 14px; font-weight: bold; margin-top: 6px; font-family: 'Noto Sans TC', sans-serif; }
     </style>
 </head>
 <body>
@@ -96,19 +100,17 @@
                     fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
                     weightFactor: 1, 
                     
-                    // 💡 【核心修改：高級感藍色系色階調色盤】
-                    // 每次畫字時，隨機從這組精心挑選的藍色家族（包含明暗、高彩度與粉藍）中抽一個顏色
+                    // 💡 【核心修改：極簡潮流黑色系色階】
+                    // 隨機分派純黑、深炭灰、石墨灰，在大螢幕上會形成非常有層次的水墨字體感
                     color: function() {
-                        const blueShades = [
-                            '#3b82f6', // 質感正藍
-                            '#60a5fa', // 輕盈天藍
-                            '#93c5fd', // 柔和粉藍
-                            '#1d4ed8', // 沉穩深寶藍
-                            '#2563eb', // 皇家藍
-                            '#06b6d4', // 潮流青藍
-                            '#0ea5e9'  // 蔚藍
+                        const blackShades = [
+                            '#000000', // 純黑（王者高票字）
+                            '#1c1917', // 石頭深灰
+                            '#292524', // 玄武岩灰
+                            '#44403c', // 炭焦灰
+                            '#0c0a09'  // 極致極光黑
                         ];
-                        return blueShades[Math.floor(Math.random() * blueShades.length)];
+                        return blackShades[Math.floor(Math.random() * blackShades.length)];
                     },
                     
                     backgroundColor: 'transparent', 
@@ -122,29 +124,8 @@
                     onWordPlot: function(item) {
                         ctx.save();
                         
-                        // 純黑框描邊
+                        // 依然保留堅固的純黑邊框，讓字體邊緣在任何背景圖下都不會虛掉
                         ctx.lineWidth = Math.max(item[1] * 0.12, 3); 
                         ctx.strokeStyle = '#000000'; 
                         ctx.lineJoin = 'round';     
-                        ctx.strokeText(item[0], item[2], item[3]); 
-                        
-                        // 配合藍色系，把外發光調成柔和的淡藍白光，整體視覺會超級乾淨！
-                        ctx.shadowBlur = 8;
-                        ctx.shadowColor = 'rgba(147, 197, 253, 0.6)';
-                        
-                        ctx.restore();
-                    }
-                });
-
-                setTimeout(() => {
-                    ctx.clearRect(0, 0, canvas.width, 210); // 確保 QR Code 區淨空
-                    canvas.classList.remove('refreshing');
-                }, 260);
-
-            }, 300); 
-        });
-
-        window.addEventListener('resize', resizeCanvas);
-    </script>
-</body>
-</html>
+                        ctx.strokeText(item[0], item[2], item[3]);
