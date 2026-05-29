@@ -6,7 +6,6 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <style>
-        /* 1. 載入更可愛、圓潤的 M PLUS Rounded 1c 字體 */
         @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800&family=Noto+Sans+TC:wght@700&display=swap');
 
         body { 
@@ -32,7 +31,6 @@
             z-index: 1;
         }
 
-        /* 💡 復原：把畫布變回全螢幕，拔除全域白色大遮罩 */
         canvas { 
             width: 100vw; 
             height: 100vh; 
@@ -69,7 +67,6 @@
         const canvas = document.getElementById('cloud-canvas');
         
         function resizeCanvas() {
-            // 💡 復原：畫布內部解析度對齊全螢幕尺寸
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         }
@@ -98,17 +95,15 @@
                     fontFamily: '"M PLUS Rounded 1c", "Noto Sans TC", "微軟正黑體", sans-serif', 
                     weightFactor: 1, 
                     
-                    // 讓套件先以隨機色繪製算好位置（避免當機），我們後續會在原地蓋上你的專屬設計
                     color: 'random-light', 
                     backgroundColor: 'transparent', 
                     rotateRatio: 0.25,   
                     minRotation: -0.2, 
                     maxRotation: 0.2,  
-                    gridSize: 12, // 網格稍微調大，讓每個字背後的色塊有舒適的空間不至於過度重疊
+                    gridSize: 12, 
                     drawOutOfBound: true, 
                     wait: 10,
                     
-                    // 💡 核心修改：原地蓋上「獨立白底色塊」與「黑色階字體」
                     onWordPlot: function(item) {
                         const text = item[0];
                         const fontSize = item[1];
@@ -117,16 +112,12 @@
                         const rotateRad = item[4] || 0;
 
                         ctx.save();
-                        
-                        // 將畫筆移動到文字中心點並跟隨設定的傾斜角度旋轉
                         ctx.translate(x, y);
                         ctx.rotate(rotateRad);
 
-                        // 測量實際文字寬度
                         ctx.font = '700 ' + fontSize + 'px "M PLUS Rounded 1c", "Noto Sans TC", sans-serif';
                         const textWidth = ctx.measureText(text).width;
 
-                        // 計算色塊尺寸與邊距
                         const padX = fontSize * 0.35;
                         const padY = fontSize * 0.2;
                         const rectW = textWidth + (padX * 2);
@@ -134,26 +125,35 @@
                         const rectX = -padX;
                         const rectY = -(fontSize * 0.8) - padY;
 
-                        // ─── 1. 先畫背後的「白底圓角色塊」 ───
+                        // ─── 1. 絕對不當機的手工圓角畫法 ───
+                        const r = fontSize * 0.25; // 圓角半徑
                         ctx.beginPath();
-                        ctx.roundRect(rectX, rectY, rectW, rectH, fontSize * 0.25);
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; // 高透白底色塊
+                        ctx.moveTo(rectX + r, rectY);
+                        ctx.lineTo(rectX + rectW - r, rectY);
+                        ctx.quadraticCurveTo(rectX + rectW, rectY, rectX + rectW, rectY + r);
+                        ctx.lineTo(rectX + rectW, rectY + rectH - r);
+                        ctx.quadraticCurveTo(rectX + rectW, rectY + rectH, rectX + rectW - r, rectY + rectH);
+                        ctx.lineTo(rectX + r, rectY + rectH);
+                        ctx.quadraticCurveTo(rectX, rectY + rectH, rectX, rectY + rectH - r);
+                        ctx.lineTo(rectX, rectY + r);
+                        ctx.quadraticCurveTo(rectX, rectY, rectX + r, rectY);
+                        ctx.closePath();
+
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; 
                         ctx.shadowBlur = 6;
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.25)'; // 淡淡的陰影讓色塊立體
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.25)'; 
                         ctx.fill();
 
-                        ctx.shadowBlur = 0; // 關閉陰影，確保後續字體線條乾淨
+                        ctx.shadowBlur = 0; 
 
-                        // ─── 2. 畫上「純黑框描邊」 ───
+                        // ─── 2. 畫上純黑框描邊 ───
                         ctx.lineWidth = Math.max(fontSize * 0.12, 3); 
                         ctx.strokeStyle = '#000000'; 
                         ctx.lineJoin = 'round';     
                         ctx.strokeText(text, 0, 0); 
                         
-                        // ─── 3. 填滿「黑色階字體」 ───
-                        const blackShades = [
-                            '#000000', '#1c1917', '#292524', '#44403c', '#0c0a09'
-                        ];
+                        // ─── 3. 填上黑色階字體 ───
+                        const blackShades = ['#000000', '#1c1917', '#292524', '#44403c', '#0c0a09'];
                         ctx.fillStyle = blackShades[Math.floor(Math.random() * blackShades.length)];
                         ctx.fillText(text, 0, 0);
                         
@@ -161,7 +161,6 @@
                     }
                 });
 
-                // 因為變回全螢幕，重新加回頂端 QR Code 安全區的強制清理
                 setTimeout(() => {
                     ctx.clearRect(0, 0, canvas.width, 210); 
                     canvas.classList.remove('refreshing');
